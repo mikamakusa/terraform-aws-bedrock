@@ -23,3 +23,9 @@ data "aws_vpc_endpoint" "this" {
     count = var.vpc_endpoint_id ? 1 : 0
     id    = var.vpc_endpoint_id
 }
+
+data "aws_caller_identity" "this" {}
+
+data "aws_partition" "this" {}
+
+data "aws_region" "this" {}

@@ -47,6 +47,64 @@ variable "vpc_endpoint_id" {
   default = null
 }
 
+variable "opensearch_collection_arn" {
+  type    = string
+  default = null
+}
+
+variable "pinecone_credentials_secrets_arn" {
+  type      = string
+  default   = null
+  sensitive = true
+}
+
+variable "rds_resource_arn" {
+  type    = string
+  default = null
+}
+
+variable "rds_credentials_secret_arn" {
+  type      = string
+  default   = null
+  sensitive = true
+}
+
+variable "redis_credentials_secret_arn" {
+  type      = string
+  default   = null
+  sensitive = true
+}
+
+variable "bedrockagent_knowledge_base_role_arn" {
+  type    = string
+  default = null
+}
+
+variable "bedrockagent_data_source_kms_key" {
+  type    = string
+  default = null
+}
+
+variable "bedrockagent_agent_role_arn" {
+  type    = string
+  default = null
+}
+
+variable "bedrockagent_agent_key_arn" {
+  type    = string
+  default = null
+}
+
+variable "s3_encryption_kms_master_key_id" {
+  type    = string
+  default = null
+}
+
+variable "bedrockagent_agent_action_group_lambda" {
+  type    = string
+  default = null
+}
+
 variable "custom_model" {
   type = list(object({
     id                      = number
@@ -163,7 +221,7 @@ variable "bedrockagent_agent" {
 variable "bedrockagent_agent_action_group" {
   type = list(object({
     id                            = number
-    agent_id                      = string
+    agent_id                      = any
     agent_version                 = string
     action_group_name             = string
     action_group_state            = optional(string)
@@ -177,8 +235,8 @@ variable "bedrockagent_agent_action_group" {
     api_schema = optional(list(object({
       payload = optional(string)
       s3 = optional(list(object({
-        s3_bucket_name = optional(string)
-        s3_object_key  = optional(string)
+        s3_bucket_id  = optional(any)
+        s3_object_key = optional(string)
       })), [])
     })), [])
     function_schema = optional(list(object({
@@ -204,7 +262,7 @@ variable "bedrockagent_agent_action_group" {
 variable "bedrockagent_agent_alias" {
   type = list(object({
     id               = number
-    agent_id         = string
+    agent_id         = any
     agent_alias_name = string
     description      = optional(string)
     tags             = optional(map(string))
@@ -222,8 +280,8 @@ variable "bedrockagent_agent_knowledge_base_association" {
   type = list(object({
     id                   = number
     description          = string
-    agent_id             = string
-    knowledge_base_id    = string
+    agent_id             = any
+    knowledge_base_id    = any
     knowledge_base_state = string
     data_deletion_policy = optional(string)
   }))
@@ -235,12 +293,12 @@ variable "bedrockagent_agent_knowledge_base_association" {
 variable "bedrockagent_data_source" {
   type = list(object({
     id                = number
-    knowledge_base_id = string
+    knowledge_base_id = any
     name              = string
     data_source_configuration = list(object({
       type = string
       s3_configuration = optional(list(object({
-        bucket_arn              = string
+        bucket_id               = any
         bucket_owner_account_id = optional(string)
         inclusion_prefixes      = optional(list(string))
       })), [])
@@ -468,4 +526,31 @@ variable "route_table" {
   default     = []
   description = <<EOF
 EOF
+}
+
+variable "s3_bucket_versioning" {
+  type = list(object({
+    id                    = number
+    bucket_id             = any
+    expected_bucket_owner = optional(string)
+    mfa                   = optional(string)
+    versioning_configuration = optional(list(object({
+      status     = string
+      mfa_delete = optional(string)
+    })), [])
+  }))
+  default     = []
+  description = <<EOF
+EOF
+}
+
+variable "s3_bucket_server_side_encryption_configuration" {
+  type = list(object({
+    id                    = number
+    bucket_id             = any
+    expected_bucket_owner = optional(string)
+    apply_server_side_encryption_by_default = optional(list(object({
+      sse_algorithm = string
+    })), [])
+  }))
 }

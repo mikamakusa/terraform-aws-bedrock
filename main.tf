@@ -17,7 +17,7 @@ resource "aws_bedrock_custom_model" "this" {
     for_each = lookup(var.custom_model[count.index], "output_data_config")
     content {
       s3_uri = join("/", ["s3:/", try(
-        element(aws_s3_bucket.this.*.id, lookup(output_data_config.value, "s3_bucket_id"))
+        element(module.s3.*.s3_bucket_id, lookup(output_data_config.value, "s3_bucket_id"))
       ), "data"])
     }
   }
@@ -26,7 +26,7 @@ resource "aws_bedrock_custom_model" "this" {
     for_each = lookup(var.custom_model[count.index], "training_data_config")
     content {
       s3_uri = join("/", ["s3:/", try(
-        element(aws_s3_bucket.this.*.id, lookup(training_data_config.value, "s3_bucket_id"))
+        element(module.s3.*.s3_bucket_id, lookup(training_data_config.value, "s3_bucket_id"))
       ), "data", lookup(training_data_config.value, "training_file")])
     }
   }
@@ -38,7 +38,7 @@ resource "aws_bedrock_custom_model" "this" {
         for_each = lookup(validation_data_config.value, "validator")
         content {
           s3_uri = join("/", ["s3:/", try(
-            element(aws_s3_bucket.this.*.id, lookup(validation_data_config.value, "s3_bucket_id"))
+            element(module.s3.*.s3_bucket_id, lookup(validation_data_config.value, "s3_bucket_id"))
           ), "data", lookup(validation_data_config.value, "validation_file")])
         }
       }
@@ -50,12 +50,12 @@ resource "aws_bedrock_custom_model" "this" {
     content {
       security_group_ids = [
         try(
-          element(aws_security_group.this.*.id, lookup(vpc_config.value, "security_group_id"))
+          element(module.vpc.*.security_group_id, lookup(vpc_config.value, "security_group_id"))
         )
       ]
       subnet_ids = [
         try(
-          element(aws_subnet.this.*.id, lookup(vpc_config.value, "subnet_id"))
+          element(module.vpc.*.aws_subnet_id, lookup(vpc_config.value, "subnet_id"))
         )
       ]
     }
@@ -82,7 +82,7 @@ resource "aws_bedrock_model_invocation_logging_configuration" "this" {
             for_each = lookup(cloudwatch_config.value, "large_data_delivery_s3_config") == null ? [] : ["large_data_delivery_s3_config"]
             content {
               bucket_name = try(
-                element(aws_s3_bucket.this.*.id, lookup(large_data_delivery_s3_config.value, "bucket_id"))
+                element(module.s3.*.s3_bucket_id, lookup(large_data_delivery_s3_config.value, "bucket_id"))
               )
               key_prefix = lookup(large_data_delivery_s3_config.value, "key_prefix")
             }
@@ -94,9 +94,105 @@ resource "aws_bedrock_model_invocation_logging_configuration" "this" {
         for_each = lookup(logging_config.value, "s3_config") == null ? [] : ["s3_config"]
         content {
           bucket_name = try(
-            element(aws_s3_bucket.this.*.id, lookup(s3_config.value, "bucket_id"))
+            element(module.s3.*.s3_bucket_id, lookup(s3_config.value, "bucket_id"))
           )
           key_prefix = lookup(s3_config.value, "key_prefix")
+        }
+      }
+    }
+  }
+}
+
+resource "aws_bedrock_guardrail" "this" {
+  count                     = length(var.guardrail)
+  blocked_input_messaging   = lookup(var.guardrail[count.index], "blocked_input_messaging")
+  blocked_outputs_messaging = lookup(var.guardrail[count.index], "blocked_outputs_messaging")
+  name                      = lookup(var.guardrail[count.index], "name")
+  description               = lookup(var.guardrail[count.index], "description")
+  kms_key_arn               = try(element(module.kms.*.key_arn, lookup(var.guardrail[count.index], "kms_key_id")))
+  tags                      = merge(
+    data.aws_default_tags.this.tags,
+    var.tags,
+    lookup(var.guardrail[count.index], "tags")
+  )
+
+  dynamic "content_policy_config" {
+    for_each = try(lookup(var.guardrail[count.index], "content_policy_config") == null ? [] : ["content_policy_config"])
+    content {
+      dynamic "filters_config" {
+        for_each = try(lookup(content_policy_config.value, "filters_config") == null ? [] : ["filters_config"])
+        content {
+          input_strength  = lookup(filters_config.value, "input_strength")
+          output_strength = lookup(filters_config.value, "output_strength")
+          type            = lookup(filters_config.value, "type")
+        }
+      }
+    }
+  }
+
+  dynamic "contextual_grounding_policy_config" {
+    for_each = try(lookup(var.guardrail[count.index], "contextual_grounding_policy_config") == null ? [] : ["contextual_grounding_policy_config"])
+    content {
+      dynamic "filters_config" {
+        for_each = try(lookup(contextual_grounding_policy_config.value, "filters_config") == null ? [] : ["filters_config"])
+        content {
+          threshold = lookup(filters_config.value, "threshold")
+          type      = lookup(filters_config.value, "type")
+        }
+      }
+    }
+  }
+
+  dynamic "sensitive_information_policy_config" {
+    for_each = try(lookup(var.guardrail[count.index], "sensitive_information_policy_config") == null ? [] : ["sensitive_information_policy_config"])
+    content {
+      dynamic "pii_entities_config" {
+        for_each = try(lookup(sensitive_information_policy_config.value, "pii_entities_config") == null ? [] : ["pii_entities_config"])
+        content {
+          action = lookup(pii_entities_config.value, "action")
+          type   = lookup(pii_entities_config.value, "type")
+        }
+      }
+
+      dynamic "regexes_config" {
+        for_each = try(lookup(sensitive_information_policy_config.value, "regexes_config") == null ? [] : ["regexes_config"])
+        content {
+          action  = lookup(regexes_config.value, "action")
+          name    = lookup(regexes_config.value, "name")
+          pattern = lookup(regexes_config.value, "pattern")
+        }
+      }
+    }
+  }
+
+  dynamic "topic_policy_config" {
+    for_each = try(lookup(var.guardrail[count.index], "topic_policy_config") == null ? [] : ["topic_policy_config"])
+    content {
+      dynamic "topics_config" {
+        for_each = try(lookup(topic_policy_config.value, "topics_config") == null ? [] : ["topics_config"])
+        content {
+          definition = lookup(topics_config.value, "definition")
+          name       = lookup(topics_config.value, "name")
+          type       = lookup(topics_config.value, "type")
+        }
+      }
+    }
+  }
+
+  dynamic "word_policy_config" {
+    for_each = try(lookup(var.guardrail[count.index], "word_policy_config") == null ? [] : ["word_policy_config"])
+    content {
+      dynamic "managed_word_lists_config" {
+        for_each = try(lookup(word_policy_config.value, "managed_word_lists_config") == null ? [] : ["managed_word_lists_config"])
+        content {
+          type = lookup(managed_word_lists_config.value, "type")
+        }
+      }
+
+      dynamic "words_config" {
+        for_each = try(lookup(word_policy_config.value, "words_config") == null ? [] : ["words_config"])
+        content {
+          text = lookup(words_config.value, "text")
         }
       }
     }
@@ -165,8 +261,8 @@ resource "aws_bedrockagent_agent" "this" {
 }
 
 resource "aws_bedrockagent_agent_action_group" "this" {
-  count                         = length(var.bedrockagent_agent) == 0 ? 0 : length(var.bedrockagent_agent_action_group)
-  agent_id                      = try(
+  count = length(var.bedrockagent_agent) == 0 ? 0 : length(var.bedrockagent_agent_action_group)
+  agent_id = try(
     element(aws_bedrockagent_agent.this.*.id, lookup(var.bedrockagent_agent_action_group[count.index], "agent_id"))
   )
   agent_version                 = lookup(var.bedrockagent_agent_action_group[count.index], "agent_version")
@@ -185,9 +281,9 @@ resource "aws_bedrockagent_agent_action_group" "this" {
         for_each = lookup(api_schema.value, "s3") == null ? [] : ["s3"]
         content {
           s3_bucket_name = try(
-            element(aws_s3_bucket.this.*.bucket, lookup(s3.value, "s3_bucket_id"))
+            element(module.s3.*.bucket_name, lookup(s3.value, "s3_bucket_id"))
           )
-          s3_object_key  = lookup(s3.value, "s3_object_key")
+          s3_object_key = lookup(s3.value, "s3_object_key")
         }
       }
     }
@@ -231,13 +327,13 @@ resource "aws_bedrockagent_agent_action_group" "this" {
 }
 
 resource "aws_bedrockagent_agent_alias" "this" {
-  count            = length(var.bedrockagent_agent) == 0 ? 0 : length(var.bedrockagent_agent_alias)
-  agent_id         = try(
+  count = length(var.bedrockagent_agent) == 0 ? 0 : length(var.bedrockagent_agent_alias)
+  agent_id = try(
     element(aws_bedrockagent_agent.this.*.id, lookup(var.bedrockagent_agent_alias[count.index], "agent_id"))
   )
   agent_alias_name = lookup(var.bedrockagent_agent_alias[count.index], "agent_alias_name")
   description      = lookup(var.bedrockagent_agent_alias[count.index], "description")
-  tags             = merge(
+  tags = merge(
     data.aws_default_tags.this.tags,
     var.tags,
     lookup(var.bedrockagent_agent_alias[count.index], "tags")
@@ -253,12 +349,12 @@ resource "aws_bedrockagent_agent_alias" "this" {
 }
 
 resource "aws_bedrockagent_agent_knowledge_base_association" "this" {
-  count                = (length(var.bedrockagent_agent) && length(var.bedrockagent_knowledge_base)) == 0 ? 0 : length(var.bedrockagent_agent_knowledge_base_association)
-  description          = lookup(var.bedrockagent_agent_knowledge_base_association[count.index], "description")
-  agent_id             = try(
+  count       = (length(var.bedrockagent_agent) && length(var.bedrockagent_knowledge_base)) == 0 ? 0 : length(var.bedrockagent_agent_knowledge_base_association)
+  description = lookup(var.bedrockagent_agent_knowledge_base_association[count.index], "description")
+  agent_id = try(
     element(aws_bedrockagent_agent.this.*.id, lookup(var.bedrockagent_agent_knowledge_base_association[count.index], "agent_id"))
   )
-  knowledge_base_id    = try(
+  knowledge_base_id = try(
     element(aws_bedrockagent_knowledge_base.this.*.id, lookup(var.bedrockagent_agent_knowledge_base_association[count.index], "knowledge_base_id"))
   )
   knowledge_base_state = lookup(var.bedrockagent_agent_knowledge_base_association[count.index], "knowledge_base_state")
@@ -266,8 +362,8 @@ resource "aws_bedrockagent_agent_knowledge_base_association" "this" {
 }
 
 resource "aws_bedrockagent_data_source" "this" {
-  count                = length(var.bedrockagent_knowledge_base) == 0 ? 0 : length(var.bedrockagent_data_source)
-  knowledge_base_id    = try(
+  count = length(var.bedrockagent_knowledge_base) == 0 ? 0 : length(var.bedrockagent_data_source)
+  knowledge_base_id = try(
     element(aws_bedrockagent_knowledge_base.this.*.id, lookup(var.bedrockagent_data_source[count.index], "knowledge_base_id"))
   )
   name                 = lookup(var.bedrockagent_data_source[count.index], "name")
@@ -281,8 +377,8 @@ resource "aws_bedrockagent_data_source" "this" {
       dynamic "s3_configuration" {
         for_each = lookup(data_source_configuration.value, "s3_configuration") == null ? [] : ["s3_configuration"]
         content {
-          bucket_arn              = try(
-            element(aws_s3_bucket.this.*.arn, lookup(s3_configuration.value, "bucket_id"))
+          bucket_arn = try(
+            element(module.s3.*.s3_bucket_arn, lookup(s3_configuration.value, "bucket_id"))
           )
         }
       }
@@ -322,7 +418,7 @@ resource "aws_bedrockagent_knowledge_base" "this" {
   role_arn    = var.bedrockagent_knowledge_base_role_arn
   name        = lookup(var.bedrockagent_knowledge_base[count.index], "name")
   description = lookup(var.bedrockagent_knowledge_base[count.index], "description")
-  tags        = merge(
+  tags = merge(
     data.aws_default_tags.this.tags,
     var.tags,
     lookup(var.bedrockagent_knowledge_base[count.index], "tags")
@@ -381,7 +477,7 @@ resource "aws_bedrockagent_knowledge_base" "this" {
       }
 
       dynamic "rds_configuration" {
-        for_each = lookup(storage_configuration.value, "type") == "RDS" ?  lookup(storage_configuration.value, "rds_configuration") : []
+        for_each = lookup(storage_configuration.value, "type") == "RDS" ? lookup(storage_configuration.value, "rds_configuration") : []
         content {
           resource_arn           = var.rds_resource_arn
           database_name          = lookup(rds_configuration.value, "database_name")

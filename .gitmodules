@@ -1,0 +1,9 @@
+[submodule "modules/terraform-aws-s3"]
+	path = modules/terraform-aws-s3
+	url = git@github.com:mikamakusa/terraform-aws-s3.git
+[submodule "modules/terraform-aws-vpc"]
+	path = modules/terraform-aws-vpc
+	url = git@github.com:mikamakusa/terraform-aws-vpc.git
+[submodule "modules/terraform-aws-kms"]
+	path = modules/terraform-aws-kms
+	url = git@github.com:mikamakusa/terraform-aws-kms.git

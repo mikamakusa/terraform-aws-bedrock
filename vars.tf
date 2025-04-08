@@ -137,6 +137,11 @@ variable "custom_model" {
   default     = []
   description = <<EOF
     EOF
+
+  validation {
+    condition     = length([for a in var.custom_model : true if contains(["FINE_TUNING", "CONTINUED_PRE_TRAINING"], a.customization_type)]) == length(var.custom_model)
+    error_message = "Valid values: FINE_TUNING, CONTINUED_PRE_TRAINING."
+  }
 }
 
 variable "model_invocation_logging_configuration" {
@@ -177,6 +182,63 @@ variable "provisioned_model_throughput" {
   default     = []
   description = <<EOF
     EOF
+
+  validation {
+    condition     = length([for a in var.provisioned_model_throughput : true if contains(["OneMonth", "SixMonths"], a.commitment_duration)]) == length(var.provisioned_model_throughput)
+    error_message = "Valid values: OneMonth, SixMonths."
+  }
+}
+
+variable "guardrail" {
+  type = list(object({
+    id                        = any
+    blocked_input_messaging   = string
+    blocked_outputs_messaging = string
+    name                      = string
+    description               = optional(string)
+    kms_key_id                = optional(any)
+    tags                      = optional(map(string))
+    content_policy_config = optional(list(object({
+      filters_config = optional(list(object({
+        input_strength  = string
+        output_strength = string
+        type            = string
+      })), [])
+    })), [])
+    contextual_grounding_policy_config = optional(list(object({
+      filters_config = optional(list(object({
+        threshold = number
+        type      = string
+      })), [])
+    })), [])
+    sensitive_information_policy_config = optional(list(object({
+      pii_entities_config = optional(list(object({
+        action = string
+        type   = string
+      })), [])
+      regexes_config = optional(list(object({
+        action  = string
+        name    = string
+        pattern = string
+      })), [])
+    })), [])
+    topic_policy_config = optional(list(object({
+      topics_config = optional(list(object({
+        definition = string
+        name       = string
+        type       = string
+      })), [])
+    })), [])
+    word_policy_config = optional(list(object({
+      managed_word_lists_config = optional(list(object({
+        type = string
+      })), [])
+      words_config = optional(list(object({
+        text = string
+      })), [])
+    })), [])
+  }))
+  default = []
 }
 
 variable "bedrockagent_agent" {
@@ -381,176 +443,63 @@ variable "bedrockagent_knowledge_base" {
 }
 
 variable "s3_bucket" {
-  type = list(object({
-    id                  = number
-    bucket              = optional(string)
-    bucket_prefix       = optional(string)
-    force_destroy       = optional(bool)
-    object_lock_enabled = optional(bool)
-    tags                = optional(map(string))
-  }))
+  type    = any
   default = []
 }
 
 variable "vpc" {
-  type = list(object({
-    id                                   = number
-    cidr_block                           = string
-    instance_tenancy                     = optional(string)
-    ipv4_ipam_pool_id                    = optional(string)
-    ipv4_netmask_length                  = optional(string)
-    ipv6_cidr_block                      = optional(string)
-    ipv6_cidr_block_network_border_group = optional(string)
-    ipv6_ipam_pool_id                    = optional(string)
-    ipv6_netmask_length                  = optional(string)
-    enable_dns_support                   = optional(bool)
-    enable_dns_hostnames                 = optional(bool)
-    enable_network_address_usage_metrics = optional(bool)
-    assign_generated_ipv6_cidr_block     = optional(bool)
-    tags                                 = optional(map(string))
-  }))
-  default     = {}
+  type        = any
+  default     = []
   description = <<EOF
 EOF
 }
 
 variable "vpc_endpoint" {
-  type = list(object({
-    id                  = number
-    service_name        = string
-    vpc_id              = optional(number)
-    auto_accept         = optional(bool)
-    ip_address_type     = optional(string)
-    policy              = optional(string)
-    private_dns_enabled = optional(bool)
-    route_table_ids     = optional(list(number))
-    security_group_ids  = optional(list(number))
-    subnet_ids          = optional(list(number))
-    tags                = optional(map(string))
-    vpc_endpoint_type   = optional(string)
-    dns_options = optional(list(object({
-      dns_record_ip_type                             = optional(string)
-      private_dns_only_for_inbound_resolver_endpoint = optional(bool)
-    })), [])
-    subnet_configuration = optional(list(object({
-      ipv4      = optional(string)
-      ipv6      = optional(string)
-      subnet_id = optional(any)
-    })), [])
-  }))
+  type    = any
   default = []
 }
 
 variable "subnet" {
-  type = list(object({
-    id                                             = number
-    vpc_id                                         = optional(number)
-    assign_ipv6_address_on_creation                = optional(bool)
-    availability_zone                              = optional(string)
-    availability_zone_id                           = optional(string)
-    cidr_block                                     = optional(string)
-    customer_owned_ipv4_pool                       = optional(string)
-    enable_dns64                                   = optional(bool)
-    enable_lni_at_device_index                     = optional(bool)
-    enable_resource_name_dns_a_record_on_launch    = optional(bool)
-    enable_resource_name_dns_aaaa_record_on_launch = optional(bool)
-    ipv6_cidr_block                                = optional(string)
-    ipv6_native                                    = optional(bool)
-    map_customer_owned_ip_on_launch                = optional(bool)
-    map_public_ip_on_launch                        = optional(bool)
-    outpost_arn                                    = optional(string)
-    tags                                           = optional(map(string))
-  }))
+  type        = any
   default     = []
   description = <<EOF
 EOF
 }
 
 variable "eip" {
-  type = list(object({
-    id                        = number
-    address                   = optional(string)
-    associate_with_private_ip = optional(string)
-    customer_owned_ipv4_pool  = optional(string)
-    domain                    = optional(string)
-    instance                  = optional(string)
-    network_border_group      = optional(string)
-    network_interface         = optional(string)
-    public_ipv4_pool          = optional(string)
-    tags                      = optional(map(string))
-  }))
+  type        = any
   default     = []
   description = <<EOF
 EOF
 }
 
 variable "security_group" {
-  type = list(object({
-    id                     = number
-    egress                 = optional(set(string))
-    ingress                = optional(set(string))
-    name                   = optional(string)
-    name_prefix            = optional(string)
-    revoke_rules_on_delete = optional(bool)
-    tags                   = optional(map(string))
-    vpc_id                 = optional(any)
-  }))
+  type        = any
   default     = []
   description = <<EOF
 EOF
 }
 
 variable "route_table" {
-  type = list(object({
-    id               = number
-    vpc_id           = optional(any)
-    propagating_vgws = optional(set(string))
-    route            = optional(set(string))
-    tags             = optional(map(string))
-    route = optional(list(object({
-      carrier_gateway_id         = optional(string)
-      cidr_block                 = optional(string)
-      core_network_arn           = optional(string)
-      destination_prefix_list_id = optional(string)
-      egress_only_gateway_id     = optional(string)
-      gateway_id                 = optional(string)
-      ipv6_cidr_block            = optional(string)
-      local_gateway_id           = optional(string)
-      nat_gateway_id             = optional(string)
-      network_interface_id       = optional(string)
-      transit_gateway_id         = optional(string)
-      vpc_endpoint_id            = optional(string)
-      vpc_peering_connection_id  = optional(string)
-    })), [])
-  }))
+  type        = any
   default     = []
   description = <<EOF
 EOF
 }
 
 variable "s3_bucket_versioning" {
-  type = list(object({
-    id                    = number
-    bucket_id             = any
-    expected_bucket_owner = optional(string)
-    mfa                   = optional(string)
-    versioning_configuration = optional(list(object({
-      status     = string
-      mfa_delete = optional(string)
-    })), [])
-  }))
+  type        = any
   default     = []
   description = <<EOF
 EOF
 }
 
 variable "s3_bucket_server_side_encryption_configuration" {
-  type = list(object({
-    id                    = number
-    bucket_id             = any
-    expected_bucket_owner = optional(string)
-    apply_server_side_encryption_by_default = optional(list(object({
-      sse_algorithm = string
-    })), [])
-  }))
+  type    = any
+  default = []
+}
+
+variable "kms_key" {
+  type    = any
+  default = []
 }

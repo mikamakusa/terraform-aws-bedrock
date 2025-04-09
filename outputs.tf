@@ -83,3 +83,20 @@ output "aws_bedrockagent_knowledge_base_id" {
 output "aws_bedrockagent_knowledge_base_arn" {
   value = try(aws_bedrockagent_knowledge_base.this.*.arn)
 }
+
+## aws_bedrock_inference_profile
+output "aws_bedrock_inference_profile_id" {
+  value = try(aws_bedrock_inference_profile.this.*.id)
+}
+
+output "aws_bedrock_inference_profile_name" {
+  value = try(aws_bedrock_inference_profile.this.*.name)
+}
+
+output "aws_bedrock_inference_profile_arn" {
+  value = try(aws_bedrock_inference_profile.this.*.arn)
+}
+
+output "aws_bedrock_inference_profile_model_source" {
+  value = try(aws_bedrock_inference_profile.this.*.model_source)
+}

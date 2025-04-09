@@ -163,7 +163,7 @@ variable "model_invocation_logging_configuration" {
         bucket_id  = any
         key_prefix = optional(string)
       })), [])
-    }), [])
+    }))
   }))
   default     = []
   description = <<EOF
@@ -241,20 +241,37 @@ variable "guardrail" {
   default = []
 }
 
+variable "guardrail_version" {
+  type = list(object({
+    id           = any
+    guardrail_id = any
+    skip_destroy = optional(bool)
+    description  = optional(string)
+  }))
+  default = []
+}
+
+variable "inference_profile" {
+  type = list(object({
+    id          = any
+    name        = string
+    description = optional(string)
+    tags        = optional(map(string))
+    model_source = optional(list(object({
+      model_name = string
+    })), [])
+  }))
+}
+
 variable "bedrockagent_agent" {
   type = list(object({
     id                            = number
     foundation_model              = string
-    agent_name                    = string
-    agent_resource_role_arn       = string
     agent_name                    = optional(string)
-    agent_resource_role_arn       = optional(string)
-    customer_encryption_key_arn   = optional(string)
     description                   = optional(string)
     idle_session_ttl_in_seconds   = optional(number)
     instruction                   = optional(string)
     prepare_agent                 = optional(bool)
-    prompt_override_configuration = optional(list(string))
     skip_resource_in_use_check    = optional(bool)
     tags                          = optional(map(string))
     prompt_override_configuration = optional(list(object({
@@ -271,8 +288,8 @@ variable "bedrockagent_agent" {
           temperature    = number
           top_k          = number
           top_p          = number
-        }), [])
-      }), [])
+        }))
+      }))
     })), [])
   }))
   default     = []
@@ -293,7 +310,7 @@ variable "bedrockagent_agent_action_group" {
     action_group_executor = list(object({
       custom_control = optional(string)
       lambda         = optional(string)
-    }), [])
+    }))
     api_schema = optional(list(object({
       payload = optional(string)
       s3 = optional(list(object({
@@ -495,6 +512,11 @@ EOF
 }
 
 variable "s3_bucket_server_side_encryption_configuration" {
+  type    = any
+  default = []
+}
+
+variable "bucket_policy" {
   type    = any
   default = []
 }

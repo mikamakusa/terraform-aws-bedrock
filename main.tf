@@ -110,7 +110,7 @@ resource "aws_bedrock_guardrail" "this" {
   name                      = lookup(var.guardrail[count.index], "name")
   description               = lookup(var.guardrail[count.index], "description")
   kms_key_arn               = try(element(module.kms.*.key_arn, lookup(var.guardrail[count.index], "kms_key_id")))
-  tags                      = merge(
+  tags = merge(
     data.aws_default_tags.this.tags,
     var.tags,
     lookup(var.guardrail[count.index], "tags")
@@ -199,6 +199,31 @@ resource "aws_bedrock_guardrail" "this" {
   }
 }
 
+resource "aws_bedrock_guardrail_version" "this" {
+  count         = length(var.guardrail) == 0 ? 0 : length(var.guardrail_version)
+  guardrail_arn = element(aws_bedrock_guardrail.this.*.guardrail_arn, lookup(var.guardrail_version[count.index], "guardrail_id"))
+  skip_destroy  = lookup(var.guardrail_version[count.index], "skip_destroy")
+  description   = lookup(var.guardrail_version[count.index], "description")
+}
+
+resource "aws_bedrock_inference_profile" "this" {
+  count       = length(var.inference_profile)
+  name        = lookup(var.inference_profile[count.index], "name")
+  description = lookup(var.inference_profile[count.index], "description")
+  tags        = merge(
+    var.tags,
+    lookup(var.inference_profile[count.index], "tags"),
+    data.aws_default_tags.this.tags
+  )
+
+  dynamic "model_source" {
+    for_each = try(lookup(var.inference_profile[count.index], "model_source") == null ? [] : ["model_source"])
+    content {
+      copy_from = format("arn:aws:bedrock:%s::foundation-model/%s", data.aws_region.this.name, lookup(model_source.value, "model_name"))
+    }
+  }
+}
+
 resource "aws_bedrock_provisioned_model_throughput" "this" {
   count                  = length(var.provisioned_model_throughput)
   model_arn              = data.aws_bedrock_foundation_model.this.model_arn
@@ -217,7 +242,7 @@ resource "aws_bedrockagent_agent" "this" {
   foundation_model              = data.aws_bedrock_foundation_model.this
   agent_name                    = lookup(var.bedrockagent_agent[count.index], "agent_name")
   agent_resource_role_arn       = var.bedrockagent_agent_role_arn
-  customer_encryption_key_arn   = var.bedrockagent_agent_key_arn
+  customer_encryption_key_arn   = try(var.bedrockagent_agent_key_arn)
   description                   = lookup(var.bedrockagent_agent[count.index], "description")
   idle_session_ttl_in_seconds   = lookup(var.bedrockagent_agent[count.index], "idle_session_ttl_in_seconds")
   instruction                   = lookup(var.bedrockagent_agent[count.index], "instruction")

@@ -3,6 +3,7 @@ module "s3" {
   bucket                                      = var.s3_bucket
   bucket_versioning                           = var.s3_bucket_versioning
   bucket_server_side_encryption_configuration = var.s3_bucket_server_side_encryption_configuration
+  bucket_policy = []
 }
 
 module "vpc" {
